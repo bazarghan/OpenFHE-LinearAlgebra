@@ -1,6 +1,6 @@
 # OpenFHE-LinearAlgebra
 
-Linear algebra library in Fully Homomorphic Encryption environment built on top of [OpenFHE](https://github.com/openfheorg/openfhe).
+Linear algebra library in Fully Homomorphic Encryption environment built on top of [OpenFHE](https://github.com/openfheorg/openfhe-development).
 
 ## Features
 
