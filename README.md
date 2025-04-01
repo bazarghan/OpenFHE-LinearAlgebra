@@ -4,7 +4,7 @@ Linear algebra library in Fully Homomorphic Encryption environment built on top 
 
 ## Features
 
-- Matrix addition/multiplication
+- Square Matrix addition/multiplication
 - Vector operations
 - More features to come
 
