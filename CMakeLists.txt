@@ -67,14 +67,15 @@ include(FetchContent)
 FetchContent_Declare(
   googletest URL https://github.com/google/googletest/archive/release-1.12.1.zip
                  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-# Optional: force shared runtime on Windows
+# Optional: force shared runtime
 set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# # Add a test executable add_executable(LinearAlgebraTests
-# tests/matrix_tests.cpp) target_link_libraries(LinearAlgebraTests gtest_main
-# OpenFHELinearAlgebra)
-#
-# include(GoogleTest) gtest_discover_tests(LinearAlgebraTests)
+# Add a test executable add_executable
+add_executable(EncryptedMatrixTests tests/encrypted_matrix_tests.cpp)
+target_link_libraries(EncryptedMatrixTests gtest_main OpenFHELinearAlgebra)
+
+include(GoogleTest)
+gtest_discover_tests(EncryptedMatrixTests)

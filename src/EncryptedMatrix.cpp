@@ -47,7 +47,7 @@ EncryptedMatrix::Decrypt(lbcrypto::PrivateKey<lbcrypto::DCRTPoly> &sk) {
   // For more information check the link: https://eprint.iacr.org/2020/1481
   for (int i = 0; i < m_rows; i++) {
     for (int j = 0; j < m_cols; j++) {
-      decoded_matrix[i][j] = decoded_matrix[(j - i + m_rows) % m_rows][i];
+      decoded_matrix[i][j] = encoded_matrix[(j - i + m_rows) % m_rows][i];
     }
   }
 
