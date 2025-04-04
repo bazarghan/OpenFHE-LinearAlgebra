@@ -1,53 +1,101 @@
 #include "EncryptedMatrix.hpp"
-#include "openfhe.h"
-#include <complex>
 #include <gtest/gtest.h>
-#include <vector>
 
 using namespace lbcrypto;
 
-// A test for encryption and decryption of a 2x2 matrix.
-TEST(EncryptedMatrixTest, EncryptionDecryption) {
-  // Define a simple 2x2 plaintext matrix using complex numbers.
-  std::vector<std::vector<std::complex<double>>> plaintext = {
-      {{1.0, 0.0}, {2.0, 0.0}}, {{3.0, 0.0}, {4.0, 0.0}}};
+// Test fixture for EncryptedMatrix tests.
+class EncryptedMatrixTest : public ::testing::Test {
+protected:
+  // Define a 4x4 matrix size constant.
+  static constexpr int matrixSize = 4;
 
-  CCParams<CryptoContextCKKSRNS> parameters;
+  // Tolerance for approximate comparisons (CKKS is approximate).
+  const double tolerance = 1e-3;
 
-  parameters.SetSecretKeyDist(UNIFORM_TERNARY);
-  parameters.SetSecurityLevel(HEStd_NotSet);
-  parameters.SetRingDim(1 << 10);
-  parameters.SetScalingModSize(59);
-  parameters.SetScalingTechnique(FLEXIBLEAUTO);
-  parameters.SetFirstModSize(60);
+  // Plaintext matrix that will be used for tests.
+  std::vector<std::vector<double>> plaintext;
 
-  CryptoContext<DCRTPoly> cc = GenCryptoContext(parameters);
+  // Crypto context.
+  CryptoContext<DCRTPoly> cc;
 
-  cc->Enable(PKE);
+  // Key pair.
+  KeyPair<DCRTPoly> keyPair;
 
-  // Generate a key pair.
-  auto keyPair = cc->KeyGen();
-  ASSERT_TRUE(keyPair.publicKey);
-  ASSERT_TRUE(keyPair.secretKey);
+  // Set up the plaintext matrix and crypto context.
+  void SetUp() override {
+    // Initialize the 4x4 plaintext matrix.
+    plaintext.resize(matrixSize, std::vector<double>(matrixSize));
+    for (int i = 0; i < matrixSize; i++) {
+      for (int j = 0; j < matrixSize; j++) {
+        plaintext[i][j] = i * matrixSize + j;
+      }
+    }
 
-  // Create an EncryptedMatrix using the crypto context, plaintext matrix, and
+    // Set up crypto parameters for CKKS scheme.
+    CCParams<CryptoContextCKKSRNS> parameters;
+    parameters.SetSecretKeyDist(UNIFORM_TERNARY);
+    parameters.SetSecurityLevel(HEStd_NotSet);
+    parameters.SetRingDim(1 << 10);
+    parameters.SetScalingModSize(59);
+    parameters.SetScalingTechnique(FLEXIBLEAUTO);
+    parameters.SetFirstModSize(60);
+    parameters.SetBatchSize(matrixSize); // Must match the matrix dimension.
+
+    // Generate crypto context.
+    cc = GenCryptoContext(parameters);
+    cc->Enable(PKE);
+    cc->Enable(KEYSWITCH);
+    cc->Enable(LEVELEDSHE);
+
+    // Key generation.
+    keyPair = cc->KeyGen();
+    ASSERT_TRUE(keyPair.publicKey);
+    ASSERT_TRUE(keyPair.secretKey);
+
+    // Generate rotation keys for evaluation (the list should be tailored to
+    // your use-case).
+    cc->EvalRotateKeyGen(keyPair.secretKey, {-1, -2, -3, -4, 0, 1, 2, 3, 4});
+  }
+};
+
+TEST_F(EncryptedMatrixTest, EncryptionDecryptionAndTranspose) {
+  // Create an EncryptedMatrix from the plaintext using the crypto context and
   // public key.
   EncryptedMatrix encMat(cc, plaintext, keyPair.publicKey);
 
-  // Decrypt the matrix using the secret key.
+  // Decrypt the encrypted matrix.
   auto decryptedMatrix = encMat.Decrypt(keyPair.secretKey);
 
-  // Verify the dimensions are the same.
+  // Verify dimensions match.
   ASSERT_EQ(decryptedMatrix.size(), plaintext.size());
   ASSERT_EQ(decryptedMatrix[0].size(), plaintext[0].size());
 
-  // Check that each element is approximately equal.
-  // Use a tolerance value since CKKS encryption is approximate.
-  double tol = 1e-3;
+  // Verify that each element is approximately equal.
   for (size_t i = 0; i < plaintext.size(); ++i) {
-    for (size_t j = 0; j < plaintext[0].size(); ++j) {
-      EXPECT_NEAR(decryptedMatrix[i][j].real(), plaintext[i][j].real(), tol);
-      EXPECT_NEAR(decryptedMatrix[i][j].imag(), plaintext[i][j].imag(), tol);
+    for (size_t j = 0; j < plaintext[i].size(); ++j) {
+      EXPECT_NEAR(decryptedMatrix[i][j], plaintext[i][j], tolerance);
+    }
+  }
+
+  // Test the transpose functionality.
+  auto encMatTranspose = encMat.T();
+  auto decryptedMatrixTranspose = encMatTranspose.Decrypt(keyPair.secretKey);
+
+  // Check that the transposed matrix has been correctly computed:
+  // element (i, j) of the transposed matrix should equal element (j, i) of the
+  // original plaintext.
+  for (size_t i = 0; i < plaintext.size(); ++i) {
+    for (size_t j = 0; j < plaintext[i].size(); ++j) {
+      EXPECT_NEAR(decryptedMatrixTranspose[i][j], plaintext[j][i], tolerance);
+    }
+  }
+
+  // Ensure that the original EncryptedMatrix remains unchanged after the
+  // transpose operation.
+  auto newDecryptedMatrix = encMat.Decrypt(keyPair.secretKey);
+  for (size_t i = 0; i < plaintext.size(); ++i) {
+    for (size_t j = 0; j < plaintext[i].size(); ++j) {
+      EXPECT_NEAR(newDecryptedMatrix[i][j], plaintext[i][j], tolerance);
     }
   }
 }
