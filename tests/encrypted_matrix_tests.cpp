@@ -33,12 +33,9 @@ protected:
 
     // Set up crypto parameters for CKKS scheme.
     CCParams<CryptoContextCKKSRNS> parameters;
-    parameters.SetSecretKeyDist(UNIFORM_TERNARY);
-    parameters.SetSecurityLevel(HEStd_NotSet);
-    parameters.SetRingDim(1 << 10);
-    parameters.SetScalingModSize(59);
-    parameters.SetScalingTechnique(FLEXIBLEAUTO);
-    parameters.SetFirstModSize(60);
+
+    parameters.SetMultiplicativeDepth(1);
+    parameters.SetScalingModSize(50);
     parameters.SetBatchSize(matrixSize); // Must match the matrix dimension.
 
     // Generate crypto context.
@@ -55,6 +52,7 @@ protected:
     // Generate rotation keys for evaluation (the list should be tailored to
     // your use-case).
     cc->EvalRotateKeyGen(keyPair.secretKey, {-1, -2, -3, -4, 0, 1, 2, 3, 4});
+    cc->EvalMultKeyGen(keyPair.secretKey);
   }
 };
 
@@ -118,7 +116,7 @@ TEST_F(EncryptedMatrixTest, EncryptedMatrixAddition) {
   EncryptedMatrix cA(cc, A, keyPair.publicKey);
   EncryptedMatrix cB(cc, B, keyPair.publicKey);
 
-  auto cC = cA + cB;
+  EncryptedMatrix cC = cA + cB;
   auto rC = cC.Decrypt(keyPair.secretKey);
 
   // Since this is arithmatic for approximate number(CKKS) there is tolerance
@@ -126,6 +124,65 @@ TEST_F(EncryptedMatrixTest, EncryptedMatrixAddition) {
   for (size_t i = 0; i < A.size(); ++i) {
     for (size_t j = 0; j < A[i].size(); ++j) {
       EXPECT_NEAR(rC[i][j], A[i][j] + B[i][j], tolerance);
+    }
+  }
+}
+
+TEST_F(EncryptedMatrixTest, EncryptedMatrixAdditionExpectThrow) {
+
+  // 4*4 Matrix Addition
+  size_t ASize = 4;
+  std::vector<std::vector<double>> A(ASize, std::vector<double>(ASize));
+  size_t BSize = 2;
+  std::vector<std::vector<double>> B(BSize, std::vector<double>(BSize));
+
+  EncryptedMatrix cA(cc, A, keyPair.publicKey);
+  EncryptedMatrix cB(cc, B, keyPair.publicKey);
+
+  EXPECT_THROW({ EncryptedMatrix cC = cA + cB; }, std::invalid_argument);
+}
+
+TEST_F(EncryptedMatrixTest, EncryptedMatrixMultiplication) {
+
+  // 4*4 Matrix Addition
+  size_t matrixSize = 4;
+  std::vector<std::vector<double>> A(matrixSize,
+                                     std::vector<double>(matrixSize));
+  std::vector<std::vector<double>> B(matrixSize,
+                                     std::vector<double>(matrixSize));
+
+  std::vector<std::vector<double>> C(matrixSize,
+                                     std::vector<double>(matrixSize));
+
+  for (int i = 0; i < matrixSize; i++) {
+    for (int j = 0; j < matrixSize; j++) {
+      A[i][j] = i * 4.0 + j; // These are just arbitary initilization
+      B[i][j] = i * 6.0 + j; // These are just arbitary initilization
+    }
+  }
+
+  // matrix multiplication
+
+  for (int k = 0; k < matrixSize; k++) {
+    for (int i = 0; i < matrixSize; i++) {
+      for (int j = 0; j < matrixSize; j++) {
+        C[i][j] += A[i][k] * B[k][j];
+      }
+    }
+  }
+
+  // matrix multiplication in Encryptd domain
+  EncryptedMatrix cA(cc, A, keyPair.publicKey);
+  EncryptedMatrix cB(cc, B, keyPair.publicKey);
+
+  EncryptedMatrix cC = cA * cB;
+  auto rC = cC.Decrypt(keyPair.secretKey);
+
+  // Since this is arithmatic for approximate number(CKKS) there is tolerance
+  double tolerance = 1e-3;
+  for (size_t i = 0; i < A.size(); ++i) {
+    for (size_t j = 0; j < A[i].size(); ++j) {
+      EXPECT_NEAR(rC[i][j], C[i][j], tolerance);
     }
   }
 }

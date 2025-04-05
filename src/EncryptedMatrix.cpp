@@ -70,10 +70,8 @@ EncryptedMatrix EncryptedMatrix::T() const {
 EncryptedMatrix EncryptedMatrix::operator+(const EncryptedMatrix &other) const {
 
   if (other.m_rows != this->m_rows || other.m_cols != this->m_cols) {
-
     throw std::invalid_argument("Matrix dimensions must match for addition.");
   }
-
   EncryptedMatrix matrixAdd(*this);
 
   for (int i = 0; i < this->m_rows; i++) {
@@ -82,4 +80,31 @@ EncryptedMatrix EncryptedMatrix::operator+(const EncryptedMatrix &other) const {
   }
 
   return matrixAdd;
+}
+
+// This is override of Multiplication operator C = A * B
+EncryptedMatrix EncryptedMatrix::operator*(const EncryptedMatrix &other) const {
+  if (other.m_rows != this->m_cols) {
+    throw std::invalid_argument(
+        "Matrix dimensions must match for multiplication.");
+  }
+
+  EncryptedMatrix matrixMult(*this);
+
+  for (int i = 0; i < m_rows; i++) {
+    for (int j = 0; j < m_cols; j++) {
+      auto temp = (*cc)->EvalMult(
+          this->encryptedData[j],
+          (*cc)->EvalRotate(other.encryptedData[(m_rows - j + i) % m_rows], j));
+
+      if (j == 0) {
+        matrixMult.encryptedData[i] = temp;
+      } else {
+
+        matrixMult.encryptedData[i] =
+            (*cc)->EvalAdd(matrixMult.encryptedData[i], temp);
+      }
+    }
+  }
+  return matrixMult;
 }
