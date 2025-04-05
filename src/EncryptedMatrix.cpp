@@ -55,6 +55,7 @@ EncryptedMatrix::Decrypt(lbcrypto::PrivateKey<lbcrypto::DCRTPoly> &sk) {
   return decoded_matrix;
 }
 
+// This works only for Matrix for n*n which n = 2^k;
 // Returns the Transpose of the matrix
 EncryptedMatrix EncryptedMatrix::T() const {
   EncryptedMatrix matrixT(*this);
@@ -63,4 +64,22 @@ EncryptedMatrix EncryptedMatrix::T() const {
         (*cc)->EvalRotate(this->encryptedData[(m_rows - i) % m_rows], i);
   }
   return matrixT;
+}
+
+// This is override of Addition operator C = A+B
+EncryptedMatrix EncryptedMatrix::operator+(const EncryptedMatrix &other) const {
+
+  if (other.m_rows != this->m_rows || other.m_cols != this->m_cols) {
+
+    throw std::invalid_argument("Matrix dimensions must match for addition.");
+  }
+
+  EncryptedMatrix matrixAdd(*this);
+
+  for (int i = 0; i < this->m_rows; i++) {
+    matrixAdd.encryptedData[i] =
+        (*cc)->EvalAdd(this->encryptedData[i], other.encryptedData[i]);
+  }
+
+  return matrixAdd;
 }

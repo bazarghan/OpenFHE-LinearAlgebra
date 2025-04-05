@@ -20,6 +20,8 @@ public:
   // this method return the Trasnpose of matirx A.T()-> A^T
   EncryptedMatrix T() const;
 
+  EncryptedMatrix operator+(const EncryptedMatrix &other) const;
+
 private:
   int m_rows;
   int m_cols;

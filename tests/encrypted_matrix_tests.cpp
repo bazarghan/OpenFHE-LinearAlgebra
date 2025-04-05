@@ -99,3 +99,33 @@ TEST_F(EncryptedMatrixTest, EncryptionDecryptionAndTranspose) {
     }
   }
 }
+
+TEST_F(EncryptedMatrixTest, EncryptedMatrixAddition) {
+
+  // 4*4 Matrix Addition
+  size_t matrixSize = 4;
+  std::vector<std::vector<double>> A(matrixSize,
+                                     std::vector<double>(matrixSize));
+  std::vector<std::vector<double>> B(matrixSize,
+                                     std::vector<double>(matrixSize));
+  for (int i = 0; i < matrixSize; i++) {
+    for (int j = 0; j < matrixSize; j++) {
+      A[i][j] = i * 4.0 + j; // These are just arbitary initilization
+      B[i][j] = i * 6.7 + j; // These are just arbitary initilization
+    }
+  }
+
+  EncryptedMatrix cA(cc, A, keyPair.publicKey);
+  EncryptedMatrix cB(cc, B, keyPair.publicKey);
+
+  auto cC = cA + cB;
+  auto rC = cC.Decrypt(keyPair.secretKey);
+
+  // Since this is arithmatic for approximate number(CKKS) there is tolerance
+  double tolerance = 1e-3;
+  for (size_t i = 0; i < A.size(); ++i) {
+    for (size_t j = 0; j < A[i].size(); ++j) {
+      EXPECT_NEAR(rC[i][j], A[i][j] + B[i][j], tolerance);
+    }
+  }
+}
